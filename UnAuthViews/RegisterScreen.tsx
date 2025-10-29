@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { insertUser } from '../xdb/database';  // your function for adding users
-
+import { insertUser } from '../xdb/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type RootStackParamList = {
@@ -27,7 +36,6 @@ const RegisterScreen: React.FC = () => {
 
     try {
       await insertUser(empId, username);
-
       await AsyncStorage.setItem('currentUser', empId);
       navigation.navigate('Main' as never);
     } catch (error) {
@@ -37,26 +45,36 @@ const RegisterScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>New Employee Registration</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.title}>New Employee Registration</Text>
 
-      <Text style={styles.label}>Employee ID</Text>
-      <TextInput
-        value={empId}
-        editable={false}
-        style={[styles.input, { backgroundColor: '#f2f2f2' }]}
-      />
+        <Text style={styles.label}>Employee ID</Text>
+        <TextInput
+          value={empId}
+          editable={false}
+          style={[styles.input, { backgroundColor: '#f2f2f2' }]}
+        />
 
-      <Text style={styles.label}>Full Name</Text>
-      <TextInput
-        value={username}
-        onChangeText={setUsername}
-        placeholder="Enter your name"
-        style={styles.input}
-      />
+        <Text style={styles.label}>Full Name</Text>
+        <TextInput
+          value={username}
+          onChangeText={setUsername}
+          placeholder="Enter your name"
+          style={styles.input}
+        />
 
-      <Button title="Register" onPress={handleRegister} />
-    </View>
+        <View style={styles.buttonContainer}>
+          <Button title="Register" onPress={handleRegister} />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -64,7 +82,7 @@ export default RegisterScreen;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
     backgroundColor: '#fff',
@@ -85,5 +103,8 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     marginBottom: 16,
+  },
+  buttonContainer: {
+    marginTop: 20,
   },
 });

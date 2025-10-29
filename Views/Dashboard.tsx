@@ -10,9 +10,10 @@ import {
     Alert,
     ScrollView,
     Platform,
+    KeyboardAvoidingView,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDB } from '../xdb/database';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -50,8 +51,8 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
         return_cost: 0,
     });
 
-    const [activeDaySession, setActiveDaySession] = useState<any>({});
-
+    const [activeDaySessions, setActiveDaySession] = useState<any>({});
+    const [activeUserId, setActiveUserID] = useState('')
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTapInPicker, setShowTapInPicker] = useState(false);
     const [showTapOutPicker, setShowTapOutPicker] = useState(false);
@@ -61,13 +62,13 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0]; // "YYYY-MM-DD"
 
-            // Fetch session where date matches today
+            console.log(activeUserId)
             const row = await db.getAllAsync(
-                'SELECT * FROM WorkSessions WHERE date = ? LIMIT 1',
-                [todayStr]
+                'SELECT * FROM WorkSessions WHERE date = ? AND emp_id = ?',
+                [todayStr, await AsyncStorage.getItem('currentUser')]
             );
 
-            setActiveDaySession(row[0] || {}); // update state
+            setActiveDaySession(row || {}); // update state
             return row || null; // optionally return the session
         } catch (error) {
             console.error('Failed to fetch active session:', error);
@@ -86,8 +87,10 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
                 setLocations(rows);
 
                 const empId = await AsyncStorage.getItem('currentUser');
+                setActiveUserID(empId || '')
                 if (empId) setForm(f => ({ ...f, emp_id: empId }));
             };
+
             fetchActiveSession();
             fetchLocations();
         }, [])
@@ -96,13 +99,25 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
     useLayoutEffect(() => {
         navigation.setOptions({
             headerRight: () =>
-                Object.keys(activeDaySession).length === 0 ? (
-                    <TouchableOpacity onPress={() => setModalVisible(true)} style={{ marginRight: 15 }}>
-                        <Ionicons name="add-circle-outline" size={28} color="green" />
-                    </TouchableOpacity>
-                ) : null,
+                // Object.keys(activeDaySessions).length === 0 ? (
+                <TouchableOpacity onPress={() => {
+
+                    setForm({
+                        emp_id: form.emp_id,
+                        location_id: 0,
+                        date: new Date(),
+                        tap_in: new Date(),
+                        tap_out: undefined,
+                        outbound_cost: 0,
+                        return_cost: 0,
+                    });
+                    setModalVisible(true)
+                }} style={{ marginRight: 15 }}>
+                    <Ionicons name="add-circle-outline" size={28} color="green" />
+                </TouchableOpacity>
+            // ) : null,
         });
-    }, [navigation, activeDaySession]);
+    }, [navigation, activeDaySessions]);
 
     const formatTime = (date: Date) => {
         let hours = date.getHours();
@@ -113,39 +128,69 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
     };
 
     const calculateHoursWorked = () => {
-        if (!form.tap_out) return 0; // tap_out is empty → 0 hours
-        const diffMs = form.tap_out.getTime() - form.tap_in.getTime();
-        if (diffMs <= 0) return 0;
+        if (!form.tap_in || !form.tap_out || !form.date) return 0;
 
+        // Helper to get hours and minutes from string or Date
+        const getHoursMinutes = (time: string | Date) => {
+            if (time instanceof Date) {
+                return { hours: time.getHours(), minutes: time.getMinutes() };
+            } else {
+                // 12-hour string like "6:00 PM"
+                const [t, modifier] = time.trim().split(' ');
+                let [hours, minutes] = t.split(':').map(Number);
+                if (modifier.toUpperCase() === 'PM' && hours < 12) hours += 12;
+                if (modifier.toUpperCase() === 'AM' && hours === 12) hours = 0;
+                return { hours, minutes };
+            }
+        };
+
+        const tapInTime = getHoursMinutes(form.tap_in);
+        const tapOutTime = getHoursMinutes(form.tap_out);
+
+        // Create Date objects based on session date
+        const tapIn = new Date(form.date);
+        tapIn.setHours(tapInTime.hours, tapInTime.minutes, 0, 0);
+
+        let tapOut = new Date(form.date);
+        tapOut.setHours(tapOutTime.hours, tapOutTime.minutes, 0, 0);
+
+        // Overnight shift check
+        if (tapOut <= tapIn) {
+            tapOut.setDate(tapOut.getDate() + 1);
+        }
+
+        const diffMs = tapOut.getTime() - tapIn.getTime();
         const totalHours = diffMs / (1000 * 60 * 60);
         const hours = Math.floor(totalHours);
         const minutes = (totalHours - hours) * 60;
 
+        // Round logic
         let roundedHours = hours;
-
-        if (minutes <= 15) {
-            // round to nearest hour (x.0)
-            roundedHours = hours;
-        } else if (minutes > 15 && minutes < 46) {
-            // round to half hour (x.5)
-            roundedHours = hours + 0.5;
-        } else {
-            // round up to next full hour
-            roundedHours = hours + 1;
-        }
+        if (minutes <= 15) roundedHours = hours;
+        else if (minutes > 15 && minutes < 46) roundedHours = hours + 0.5;
+        else roundedHours = hours + 1;
 
         return roundedHours;
     };
 
 
+
     const handleSave = async () => {
         try {
+            // ✅ Validation: location must be selected
+            if (!form.location_id) {
+                Alert.alert('Error', 'Please select a location before saving.');
+                return;
+            }
+
             const db = await getDB();
-            const hoursWorked = calculateHoursWorked();
-            const ticketFare = form.outbound_cost + form.return_cost;
+
+            // Calculate hours worked
+            const hoursWorked = calculateHoursWorked(); // make sure this reads from form
+            const ticketFare = (form.outbound_cost || 0) + (form.return_cost || 0);
 
             if (isEditing && editingSessionId) {
-                // 🔁 Update existing session
+                // Update existing session
                 await db.runAsync(
                     `UPDATE WorkSessions 
                 SET location_id=?, date=?, tap_in=?, tap_out=?, hours_worked=?, outbound_cost=?, return_cost=?, ticket_fare=?
@@ -162,6 +207,7 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
                         editingSessionId,
                     ]
                 );
+
                 Alert.alert('Updated', 'Work session updated successfully!');
             } else {
                 // ➕ Create new session
@@ -250,70 +296,73 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
     return (
         <View style={styles.container}>
             <Text style={styles.title}>
-                Active work session
+                Today work session
             </Text>
-            {Object.keys(activeDaySession).length > 0 && (
+
+            {/* Warning if 2 or more sessions */}
+            {activeDaySessions.length >= 2 && (
+                <Text style={{ color: 'red', marginBottom: 10 , alignItems: 'center' }}>
+                    ⚠️ Multiple work detected ! This is unusual.
+                </Text>
+            )}
+
+            {activeDaySessions.length > 0 && activeDaySessions.map((session: any) => (
                 <TouchableOpacity
+                    key={session.session_id} // unique key for each session
                     style={styles.sessionCard}
                     activeOpacity={0.8}
                     onPress={() => {
                         // Fill form with existing session details
                         setForm({
-                            emp_id: activeDaySession.emp_id,
-                            location_id: activeDaySession.location_id,
-                            date: new Date(activeDaySession.date),
-                            tap_in: new Date(`1970-01-01T${convertTo24Hour(activeDaySession.tap_in)}`),
-                            tap_out: activeDaySession.tap_out
-                                ? new Date(`1970-01-01T${convertTo24Hour(activeDaySession.tap_out)}`)
+                            emp_id: session.emp_id,
+                            location_id: session.location_id,
+                            date: new Date(session.date),
+                            tap_in: new Date(`1970-01-01T${convertTo24Hour(session.tap_in)}`),
+                            tap_out: session.tap_out
+                                ? new Date(`1970-01-01T${convertTo24Hour(session.tap_out)}`)
                                 : undefined,
-                            outbound_cost: activeDaySession.outbound_cost,
-                            return_cost: activeDaySession.return_cost,
+                            outbound_cost: session.outbound_cost,
+                            return_cost: session.return_cost,
                         });
-                        setEditingSessionId(activeDaySession.session_id);
+                        setEditingSessionId(session.session_id);
                         setIsEditing(true);
                         setModalVisible(true);
                     }}
                 >
                     <View style={styles.cardRow}>
-                        <Ionicons name="location-outline" size={20} color="black" />
+                        <Text>📍</Text>
                         <Text style={styles.cardText}>
-                            Location: {locations.find(l => l.location_id === activeDaySession.location_id)?.location_name || 'N/A'}
+                            Location: {locations.find(l => l.location_id === session.location_id)?.location_name || 'N/A'}
                         </Text>
                     </View>
                     <View style={styles.cardRow}>
-                        <Ionicons name="calendar-outline" size={20} color="black" />
-                        <Text style={styles.cardText}>Date: {activeDaySession.date}</Text>
+                        <Text>🗓️</Text>
+                        <Text style={styles.cardText}>Date: {session.date}</Text>
                     </View>
                     <View style={styles.cardRow}>
-                        <Ionicons name="time-outline" size={20} color="black" />
-                        <Text style={styles.cardText}>Tap In: {activeDaySession.tap_in}</Text>
+                        <Text>⏱️</Text>
+                        <Text style={styles.cardText}>Tap In: {session.tap_in}</Text>
                     </View>
-                    {activeDaySession.tap_out && (
+                    {session.tap_out && (
                         <View style={styles.cardRow}>
-                            <Ionicons name="time-outline" size={20} color="black" />
-                            <Text style={styles.cardText}>Tap Out: {activeDaySession.tap_out}</Text>
+                            <Text>⏱️</Text>
+                            <Text style={styles.cardText}>Tap Out: {session.tap_out}</Text>
                         </View>
                     )}
                     <View style={styles.cardRow}>
-                        <Ionicons name="cash-outline" size={20} color="black" />
+                        <Text>🎫</Text>
                         <Text style={styles.cardText}>
-                            Outbound: {activeDaySession.outbound_cost?.toFixed(3)} | Return: {activeDaySession.return_cost?.toFixed(3)}
+                            Outbound: {session.outbound_cost?.toFixed(3)} | Return: {session.return_cost?.toFixed(3)}
                         </Text>
                     </View>
                     <View style={styles.cardRow}>
-                        <MaterialCommunityIcons name="clock-time-four-outline" size={20} color="black" />
+                        <Text>⏳</Text>
                         <Text style={styles.cardText}>
-                            Hours Worked: {activeDaySession.hours_worked?.toFixed(2)}
-                        </Text>
-                    </View>
-                    <View style={styles.cardRow}>
-                        <Ionicons name="ticket-outline" size={20} color="black" />
-                        <Text style={styles.cardText}>
-                            Ticket Fare: {activeDaySession.ticket_fare?.toFixed(3)}
+                            Hours Worked: {session.hours_worked?.toFixed(2)}
                         </Text>
                     </View>
                 </TouchableOpacity>
-            )}
+            ))}
 
 
 
@@ -321,161 +370,227 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
 
 
             <Modal visible={modalVisible} animationType="slide" transparent={true}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <ScrollView>
-                            <Text style={styles.modalTitle}>{isEditing ? 'Edit Work Session' : 'Add Work Session'}</Text>
-
-
-                            {/* Location */}
-                            <Text style={styles.label}>Location</Text>
-                            <View style={styles.pickerWrapper}>
-                                <Picker
-                                    selectedValue={form.location_id}
-                                    onValueChange={(value) => setForm({ ...form, location_id: value })}
-                                    style={{ color: 'black', width: '100%' }}
-                                    mode="dropdown"
-                                >
-                                    <Picker.Item label="Select location" value={0} />
-                                    {locations.map((loc) => (
-                                        <Picker.Item key={loc.location_id} label={loc.location_name} value={loc.location_id} />
-                                    ))}
-                                </Picker>
-                            </View>
-
-                            {/* Date */}
-                            <Text style={styles.label}>Date</Text>
-                            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.iconInput}>
-                                <MaterialCommunityIcons name="calendar-month" size={28} color="black" />
-                                <Text style={styles.iconText}>{form.date.toISOString().split('T')[0]}</Text>
-                            </TouchableOpacity>
-                            {showDatePicker && (
-                                <DateTimePicker
-                                    value={form.date}
-                                    mode="date"
-                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                    onChange={(_, selectedDate) => {
-                                        setShowDatePicker(false);
-                                        if (selectedDate) setForm({ ...form, date: selectedDate });
-                                    }}
-                                />
-                            )}
-
-                            {/* Tap In */}
-                            <Text style={styles.label}>Tap In</Text>
-                            <TouchableOpacity onPress={() => setShowTapInPicker(true)} style={styles.iconInput}>
-                                <MaterialCommunityIcons name="clock-time-four-outline" size={28} color="black" />
-                                <Text style={styles.iconText}>{formatTime(form.tap_in)}</Text>
-                            </TouchableOpacity>
-                            {showTapInPicker && (
-                                <DateTimePicker
-                                    value={form.tap_in}
-                                    mode="time"
-                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                    onChange={(_, selectedTime) => {
-                                        setShowTapInPicker(false);
-                                        if (selectedTime) setForm({ ...form, tap_in: selectedTime });
-                                    }}
-                                />
-                            )}
-
-                            {form.tap_in && (
-                                <View style={{ marginVertical: 10 }}>
-                                    <Text style={styles.label}>Suggested Tap Out Times</Text>
-
-                                    {getBestTapOuts(form.tap_in)
-                                        .slice(-5) // take last 5 items
-                                        .map((s, i) => (
-                                            <View key={i} style={styles.suggestionRow}>
-                                                <Text style={styles.suggestionText}>
-                                                    ⏱ {s.hoursWorked.toFixed(1)} hrs → {formatTime2(s.time)}
-                                                </Text>
-                                            </View>
-                                        ))}
-                                </View>
-                            )}
-
-                            {/* Tap Out */}
-                            <Text style={styles.label}>Tap Out</Text>
-                            <TouchableOpacity onPress={() => setShowTapOutPicker(true)} style={styles.iconInput}>
-                                <MaterialCommunityIcons name="clock-end" size={28} color="black" />
-                                <Text style={styles.iconText}>
-                                    {form.tap_out ? formatTime(form.tap_out) : '--:--'}
+                <KeyboardAvoidingView
+                    style={{ flex: 1 }}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <ScrollView
+                                contentContainerStyle={{ paddingBottom: 0 }}
+                                keyboardShouldPersistTaps="handled"
+                                showsVerticalScrollIndicator={false}
+                            >
+                                <Text style={styles.modalTitle}>
+                                    {isEditing ? 'Edit Work Session' : 'Add Work Session'}
                                 </Text>
 
-                            </TouchableOpacity>
-                            {showTapOutPicker && (
-                                <DateTimePicker
-                                    value={form.tap_out ?? form.tap_in ?? new Date()}
-                                    mode="time"
-                                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                    onChange={(_, selectedTime) => {
-                                        setShowTapOutPicker(false);
-                                        if (selectedTime) setForm({ ...form, tap_out: selectedTime });
-                                    }}
+                                {/* Location */}
+                                <Text style={styles.label}>Location</Text>
+                                <View style={styles.pickerWrapper}>
+                                    <Picker
+                                        selectedValue={form.location_id}
+                                        onValueChange={(value) => setForm({ ...form, location_id: value })}
+                                        style={{ color: 'black', width: '100%' }}
+                                        mode="dropdown"
+                                    >
+                                        <Picker.Item label="📍 Select location" value={0} />
+                                        {locations.map((loc) => (
+                                            <Picker.Item key={loc.location_id} label={`📍 ${loc.location_name}`} value={loc.location_id} />
+                                        ))}
+                                    </Picker>
+                                </View>
+
+                                {/* Date */}
+                                <Text style={styles.label}>Date</Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowDatePicker(true)}
+                                    style={styles.iconInput}
+                                >
+                                    <Text>🗓️</Text>
+                                    <Text style={styles.iconText}>{form.date.toISOString().split('T')[0]}</Text>
+                                </TouchableOpacity>
+
+                                {showDatePicker && (
+                                    <DateTimePicker
+                                        value={form.date}
+                                        mode="date"
+                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                        onChange={(_, selectedDate) => {
+                                            setShowDatePicker(false);
+                                            if (selectedDate) setForm({ ...form, date: selectedDate });
+                                        }}
+                                    />
+                                )}
+
+                                {/* Tap In */}
+                                <Text style={styles.label}>Tap In</Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowTapInPicker(true)}
+                                    style={styles.iconInput}
+                                >
+                                    <Text>⏱️</Text>
+                                    <Text style={styles.iconText}>{formatTime(form.tap_in)}</Text>
+                                </TouchableOpacity>
+
+                                {showTapInPicker && (
+                                    <DateTimePicker
+                                        value={form.tap_in}
+                                        mode="time"
+                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                        onChange={(_, selectedTime) => {
+                                            setShowTapInPicker(false);
+                                            if (selectedTime) setForm({ ...form, tap_in: selectedTime });
+                                        }}
+                                    />
+                                )}
+
+                                {/* Suggested Tap Out Times */}
+                                {form.tap_in && (
+                                    <View style={{ marginVertical: 10 }}>
+                                        <Text style={styles.label}>Suggested Tap Out Times</Text>
+                                        {getBestTapOuts(form.tap_in)
+                                            .slice(-5)
+                                            .map((s, i) => (
+                                                <View key={i} style={styles.suggestionRow}>
+                                                    <Text style={styles.suggestionText}>
+                                                        ⏰ {s.hoursWorked.toFixed(1)} hrs → {formatTime2(s.time)}
+                                                    </Text>
+                                                </View>
+                                            ))}
+                                    </View>
+                                )}
+
+                                {/* Tap Out */}
+                                <Text style={styles.label}>Tap Out</Text>
+                                <TouchableOpacity
+                                    onPress={() => setShowTapOutPicker(true)}
+                                    style={styles.iconInput}
+                                >
+                                    <Text>⏰</Text>
+                                    <Text style={styles.iconText}>
+                                        {form.tap_out ? formatTime(form.tap_out) : '--:--'}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {showTapOutPicker && (
+                                    <DateTimePicker
+                                        value={form.tap_out ?? form.tap_in ?? new Date()}
+                                        mode="time"
+                                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                                        onChange={(_, selectedTime) => {
+                                            setShowTapOutPicker(false);
+                                            if (selectedTime) setForm({ ...form, tap_out: selectedTime });
+                                        }}
+                                    />
+                                )}
+
+                                {/* Outbound Cost */}
+                                <Text style={styles.label}>Outbound Cost</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Or enter manually"
+                                    placeholderTextColor="gray"
+                                    keyboardType="numeric"
+                                    value={form.outbound_cost.toString()}
+                                    onChangeText={(text) =>
+                                        setForm({ ...form, outbound_cost: parseFloat(text) || 0 })
+                                    }
                                 />
-                            )}
+                                <View style={styles.costContainer}>
+                                    {costOptions.map((c) => (
+                                        <TouchableOpacity
+                                            key={c}
+                                            onPress={() => setForm({ ...form, outbound_cost: c })}
+                                            style={[
+                                                styles.iconButton,
+                                                form.outbound_cost === c && { backgroundColor: '#4caf50' },
 
+                                            ]}
+                                        >
+                                            <Text
+                                                style={{ color: form.outbound_cost === c ? '#fff' : 'black' }}
+                                            >
 
-                            {/* Outbound Cost */}
-                            <Text style={styles.label}>Outbound Cost</Text>
-                            <View style={styles.costContainer}>
-                                {costOptions.map((c) => (
+                                                🎫
+                                            </Text>
+                                            <Text
+                                                style={{ color: form.outbound_cost === c ? '#fff' : 'black' }}
+                                            >
+                                                {c.toFixed(3)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {/* Return Cost */}
+                                <Text style={styles.label}>Return Cost</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="Or enter manually"
+                                    placeholderTextColor="gray"
+                                    keyboardType="numeric"
+                                    value={form.return_cost.toString()}
+                                    onChangeText={(text) =>
+                                        setForm({ ...form, return_cost: parseFloat(text) || 0 })
+                                    }
+                                />
+                                <View style={styles.costContainer}>
+                                    {costOptions.map((c) => (
+                                        <TouchableOpacity
+                                            key={c}
+                                            onPress={() => setForm({ ...form, return_cost: c })}
+                                            style={[
+                                                styles.iconButton,
+                                                form.return_cost === c && { backgroundColor: '#4caf50' },
+                                            ]}
+                                        >
+                                            <Text
+                                                style={{ color: form.outbound_cost === c ? '#fff' : 'black' }}
+                                            >
+
+                                                🎫
+                                            </Text>
+                                            <Text
+                                                style={{ color: form.return_cost === c ? '#fff' : 'black' }}
+                                            >
+                                                {c.toFixed(3)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {/* Buttons */}
+                                <View
+                                    style={{
+                                        flexDirection: 'row',
+                                        justifyContent: 'space-between',
+                                        marginTop: 20,
+                                        marginBottom: 10,
+                                    }}
+                                >
                                     <TouchableOpacity
-                                        key={c}
-                                        onPress={() => setForm({ ...form, outbound_cost: c })}
-                                        style={[
-                                            styles.iconButton,
-                                            form.outbound_cost === c && { backgroundColor: '#4caf50' },
-                                        ]}
+                                        style={[styles.button, styles.cancelButton]}
+                                        onPress={() => setModalVisible(false)}
                                     >
-                                        <Ionicons name="cash-outline" size={24} color={form.outbound_cost === c ? '#fff' : 'black'} />
-                                        <Text style={{ color: form.outbound_cost === c ? '#fff' : 'black' }}>{c.toFixed(3)}</Text>
+                                        <MaterialIcons name="cancel" size={20} color="white" style={styles.icon} />
+                                        <Text style={styles.buttonText}>Cancel</Text>
                                     </TouchableOpacity>
-                                ))}
-                            </View>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Or enter manually"
-                                placeholderTextColor="gray"
-                                keyboardType="numeric"
-                                value={form.outbound_cost.toString()}
-                                onChangeText={(text) => setForm({ ...form, outbound_cost: parseFloat(text) || 0 })}
-                            />
 
-                            {/* Return Cost */}
-                            <Text style={styles.label}>Return Cost</Text>
-                            <View style={styles.costContainer}>
-                                {costOptions.map((c) => (
                                     <TouchableOpacity
-                                        key={c}
-                                        onPress={() => setForm({ ...form, return_cost: c })}
-                                        style={[
-                                            styles.iconButton,
-                                            form.return_cost === c && { backgroundColor: '#4caf50' },
-                                        ]}
+                                        style={[styles.button, styles.updateButton]}
+                                        onPress={handleSave}
                                     >
-                                        <Ionicons name="cash-outline" size={24} color={form.return_cost === c ? '#fff' : 'black'} />
-                                        <Text style={{ color: form.return_cost === c ? '#fff' : 'black' }}>{c.toFixed(3)}</Text>
+                                        <MaterialIcons name="save" size={20} color="white" style={styles.icon} />
+                                        <Text style={styles.buttonText}>Save</Text>
                                     </TouchableOpacity>
-                                ))}
-                            </View>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Or enter manually"
-                                placeholderTextColor="gray"
-                                keyboardType="numeric"
-                                value={form.return_cost.toString()}
-                                onChangeText={(text) => setForm({ ...form, return_cost: parseFloat(text) || 0 })}
-                            />
-
-                            {/* Save / Cancel */}
-                            <Button title="Save" onPress={handleSave} />
-                            <Button title="Cancel" color="red" onPress={() => setModalVisible(false)} />
-                        </ScrollView>
+                                </View>
+                            </ScrollView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
+
         </View>
     );
 };
@@ -492,6 +607,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         padding: 8,
+        gap: 2,
         borderWidth: 1,
         borderColor: '#aaa',
         borderRadius: 6,
@@ -542,6 +658,31 @@ const styles = StyleSheet.create({
     },
     cardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
     cardText: { marginLeft: 8, fontSize: 14 },
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 20,
+    },
+    button: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+    },
+    updateButton: {
+        backgroundColor: '#4CAF50',
+    },
+    cancelButton: {
+        backgroundColor: '#E53935',
+    },
+    icon: {
+        marginRight: 8,
+    },
+    buttonText: {
+        color: 'white',
+        fontWeight: 'bold',
+    },
 });
 
 export default Dashboard;
