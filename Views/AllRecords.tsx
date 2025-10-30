@@ -212,7 +212,7 @@ export default function Records() {
             const db = await getDB();
             const hoursWorked = calculateHoursWorked();
             const ticketFare = form.outbound_cost + form.return_cost;
-            console.log("form", form)
+         
             await db.runAsync(
                 `UPDATE WorkSessions 
                     SET location_id=?, date=?, tap_in=?, tap_out=?, hours_worked=?, outbound_cost=?, return_cost=?, ticket_fare=?

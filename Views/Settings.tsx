@@ -4,14 +4,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDB } from "../xdb/database";
 import Crud from "./Crud";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 
 const Settings = () => {
   const [xGroupedSessions, setXGroupedSessions] = useState<any>({});
 
-  useLayoutEffect(() => {
-    fetchSessions();
-    loadConversionRate()
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+        fetchSessions();
+        loadConversionRate()
+      }, [])
+    );
 
   const fetchSessions = async () => {
     const db = await getDB();
@@ -96,6 +99,7 @@ const Settings = () => {
 
   const renderSession = ({ item }: { item: any }) => (
     <View style={xStyles.xListItem}>
+
       <View style={xStyles.xItemContent}>
         <View style={xStyles.xSessionInfo}>
           <Text style={xStyles.xSessionDate}>📅 {item.date}</Text>
@@ -128,7 +132,7 @@ const Settings = () => {
       setSavedConversionRate(rateNum);
       setConversionRateInput(rateNum ? rateNum.toString() : ""); // string for input
     } catch (error) {
-      console.log("Error loading conversion rate:", error);
+     Alert.alert("Error loading conversion rate .Resart the application");
     }
   };
 
@@ -154,7 +158,7 @@ const Settings = () => {
         `Conversion rate set to ${num}\nAll dashboard earnings will be recalculated based on the new rate.`
       );
     } catch (error) {
-      console.log("Error saving conversion rate:", error);
+      Alert.alert("Error saving conversion rate .");
     }
   };
 
@@ -179,9 +183,11 @@ const Settings = () => {
               <Crud />
 
 
-              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
-                <Ionicons name="location" size={24} color="#10b981" />
-                <Text style={xStyles.xConversionTitle}> {`Conversion (1 KWD → ${conversionRateInput || savedConversionRate.toString()} INR)`}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6, padding: 1 }}>
+
+
+                <Text style={xStyles.xConversionTitle}>💱</Text>
+                <Text style={xStyles.xConversionTitle}>  {`Conversion (1 KWD → ${conversionRateInput || savedConversionRate.toString()} INR)`}</Text>
               </View>
               <View style={xStyles.xConversionContainer}>
 
@@ -197,6 +203,12 @@ const Settings = () => {
                 <TouchableOpacity style={xStyles.xConversionButton} onPress={handleSaveRate}>
                   <Text style={xStyles.xConversionButtonText}>💾 Save Rate</Text>
                 </TouchableOpacity>
+              </View>
+               <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 ,padding:1}}>
+              
+                
+                <Text style={xStyles.xConversionTitle}>🗓️</Text>
+                <Text style={xStyles.xConversionTitle}>  Session Details</Text>
               </View>
             </View>
           }
@@ -457,8 +469,9 @@ const xStyles = StyleSheet.create({
   xConversionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#6b7280",
-   
+    color: "#374151",
+    padding:3
+
   },
   xConversionInput: {
     borderWidth: 1,

@@ -37,7 +37,7 @@ export default function MyTimesheet() {
   const [loading, setLoading] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [showGroupModal, setShowGroupModal] = useState(false);
-  
+
 
   const { periodStart, periodEnd, periodLabel, titleMonth, titleYear } = useMemo(() => {
     const today = new Date();
@@ -69,14 +69,15 @@ export default function MyTimesheet() {
       const endStr = periodEnd.toISOString().slice(0, 10);
 
       const q = `
-        SELECT ws.session_id, ws.emp_id, u.username, l.location_name, ws.date, ws.hours_worked, ws.timesheet_submitted
-        FROM WorkSessions ws
-        JOIN Locations l ON ws.location_id = l.location_id
-        JOIN Users u ON ws.emp_id = u.emp_id
-        WHERE ws.emp_id = ? AND ws.date >= ? AND ws.date < ? AND emp_id = ?
-        ORDER BY ws.date ASC
-      `;
+  SELECT ws.session_id, ws.emp_id, u.username, l.location_name, ws.date, ws.hours_worked, ws.timesheet_submitted
+  FROM WorkSessions ws
+  JOIN Locations l ON ws.location_id = l.location_id
+  JOIN Users u ON ws.emp_id = u.emp_id
+  WHERE ws.emp_id = ? AND ws.date >= ? AND ws.date < ?
+  ORDER BY ws.date ASC
+`;
       const result = await db.getAllAsync<WorkRow>(q, [empId, startStr, endStr]);
+
       setRows(result);
     } catch (e) {
       console.error(e);
@@ -85,14 +86,12 @@ export default function MyTimesheet() {
     }
   };
 
-  useLayoutEffect(() => {
-    loadPeriodData();
-  }, [periodStart.getTime(), periodEnd.getTime()]);
+
 
   useFocusEffect(
     React.useCallback(() => {
       loadPeriodData();
-      return () => {};
+      return () => { };
     }, [periodStart.getTime(), periodEnd.getTime()])
   );
 
@@ -106,7 +105,7 @@ export default function MyTimesheet() {
     return byGroup;
   }, [rows]);
 
-  
+
 
   function buildTwoDigitChallenge(): number {
     return Math.floor(Math.random() * 90) + 10; // 10..99

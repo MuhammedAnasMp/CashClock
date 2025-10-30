@@ -20,6 +20,7 @@ import { User, Location } from '../types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import Settings from './Settings';
+import { useFocusEffect } from '@react-navigation/native';
 
 const Crud: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -34,13 +35,14 @@ const Crud: React.FC = () => {
   const [editingLocationId, setEditingLocationId] = useState<number | null>(null);
   const [editingLocationName, setEditingLocationName] = useState('');
 
+  useFocusEffect(
+    React.useCallback(() => {
+      initDatabase().catch(console.error);
+      loadData();
+    }, [])
+  );
 
 
-  useLayoutEffect(() => {
-
-    initDatabase().catch(console.error);
-    loadData();
-  }, []);
 
   const loadData = async () => {
     setUsers(await getUsers());
@@ -294,9 +296,9 @@ const Crud: React.FC = () => {
         </View>
 
         {/* Locations List */}
-        <View style={{ flexDirection: "row", alignItems: "center" ,marginBottom:6 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
           <Ionicons name="location" size={24} color="#10b981" />
-          <Text style={[styles.sectionTitle, { marginLeft: 4  }]}>Locations List</Text>
+          <Text style={[styles.sectionTitle, { marginLeft: 4 }]}>Locations List</Text>
         </View>
 
         <FlatList

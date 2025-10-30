@@ -53,7 +53,7 @@ export const initDatabase = async () => {
 
   console.log('✅ Database initialized');
 
-  // Seed Locations
+
   const existing = await db.getAllAsync('SELECT * FROM Locations LIMIT 1');
   if (existing.length === 0) {
     const locations = [
@@ -76,7 +76,6 @@ export const initDatabase = async () => {
       await db.runAsync(insertQuery, [loc.code, loc.name]);
     }
 
-    console.log('✅ Locations table seeded');
   }
 };
 
@@ -88,7 +87,6 @@ export const insertUser = async (empId: string, username: string) => {
     empId,
     username
   );
-  console.log('User created:', result.lastInsertRowId);
   return result.lastInsertRowId ?? 0;
 };
 
@@ -103,7 +101,6 @@ export const insertLocation = async (location: Location): Promise<number> => {
     location.location_id,
     location.location_name
   );
-  console.log('Location inserted with custom ID:', location.location_id);
   return location.location_id;
 };
 
@@ -129,7 +126,7 @@ export const updateUser = async (user_id: number, emp_id: string, username: stri
     username,
     user_id
   );
-  console.log(`User ${user_id} updated`);
+ 
 };
 
 // Update location
@@ -140,21 +137,21 @@ export const updateLocation = async (location_id: number, location_name: string)
     location_name,
     location_id
   );
-  console.log(`Location ${location_id} updated`);
+
 };
 
 // Delete user
 export const deleteUser = async (user_id: number) => {
   const db = await getDB();
   await db.runAsync('DELETE FROM Users WHERE user_id = ?', user_id);
-  console.log(`User ${user_id} deleted`);
+
 };
 
 // Delete location
 export const deleteLocation = async (location_id: number) => {
   const db = await getDB();
   await db.runAsync('DELETE FROM Locations WHERE location_id = ?', location_id);
-  console.log(`Location ${location_id} deleted`);
+
 };
 
 

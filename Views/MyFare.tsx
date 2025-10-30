@@ -74,7 +74,6 @@ export default function MyFare() {
         const ret = Number(item.return_cost) || 0;
         return out > 0 || ret > 0;
       });
-      console.log(filtered)
       setFares(filtered);
 
       // Reset selection

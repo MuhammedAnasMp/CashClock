@@ -47,7 +47,6 @@ function AuthenticatedDrawer() {
       drawerContent={(props) => <CustomDrawerContent {...props} />}> 
       <Drawer.Screen name="Dashboard" component={Dashboard} />
       <Drawer.Screen name="All Records" component={AllRecords} />
-      <Drawer.Screen name="Crud" component={Crud} />
       <Drawer.Screen name="My Fare" component={MyFare} />
       <Drawer.Screen name="My Timesheet" component={MyTimesheet} />
       <Drawer.Screen name="Merge Fare" component={MergeFare} />

@@ -94,7 +94,7 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
 
     useFocusEffect(
         useCallback(() => {
-
+     
             const fetchLocations = async () => {
                 const db = await getDB();
                 const rows = (await db.getAllAsync(
@@ -110,6 +110,7 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
             fetchActiveSession();
             fetchLocations();
             loadConversionRate();
+            fetchData()
         }, [])
     );
 
@@ -263,6 +264,7 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
                 return_cost: 0,
             });
             fetchActiveSession();
+            fetchData()
         } catch (error) {
             console.error(error);
             Alert.alert('Error', 'Failed to save work session.');
@@ -443,11 +445,6 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
         });
         return total;
     };
-
-
-    useEffect(() => {
-        fetchData();
-    }, [conversionRate]);
 
 
 
@@ -922,6 +919,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#f8fafc",
         paddingHorizontal: 8,
+        paddingTop: 8,
     },
     header: {
         paddingVertical: 24,
