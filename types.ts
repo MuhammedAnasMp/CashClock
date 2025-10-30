@@ -8,4 +8,5 @@ export interface User {
 export interface Location {
   location_id: number;      // number type
   location_name: string;
+  location_code?:number
 }

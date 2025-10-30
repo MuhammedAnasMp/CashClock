@@ -74,7 +74,7 @@ export default function MyFare() {
         const ret = Number(item.return_cost) || 0;
         return out > 0 || ret > 0;
       });
-      console.log(filtered) 
+      console.log(filtered)
       setFares(filtered);
 
       // Reset selection
@@ -386,103 +386,173 @@ export default function MyFare() {
   const groupedData = groupByMonth(fares);
 
 
-  const renderItem = ({ item }: { item: FareRecord }) => {
-    const out = Number(item.outbound_cost) || 0;
-    const ret = Number(item.return_cost) || 0;
-    const total = out + ret;
+ const renderItem = ({ item }: { item: FareRecord }) => {
+  const out = Number(item.outbound_cost) || 0;
+  const ret = Number(item.return_cost) || 0;
+  const total = out + ret;
 
-    const formattedDate = new Date(item.date).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-    
-
- return (
-      <View style={styles.card}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-          <View>
-            <Text style={styles.location}>{item.location_name}</Text>
-            <Text style={styles.date}>{formattedDate}</Text>
-          </View>
-
-          <Checkbox
-            value={selected[item.session_id]}
-            onValueChange={() => toggleSelect(item.session_id)}
-            color={selected[item.session_id] ? "#4630EB" : undefined}
-          />
-        </View>
-
-        <Text>Outbound Cost: {out.toFixed(2)}</Text>
-        <Text>Return Cost: {ret.toFixed(2)}</Text>
-        <Text style={{ fontWeight: "bold" }}>Total Cost: {total.toFixed(2)}</Text>
-        <Text
-          style={{
-            color: item.ticket_fare_claimed ? "green" : "red",
-            fontWeight: "bold",
-            marginTop: 4,
-          }}
-        >
-          {item.ticket_fare_claimed ? "Claimed ✅" : "Not Claimed ❌"}
-        </Text>
-      </View>
-    );
-  };
-
-
-  const renderSection = ({ item }: { item: GroupedFares }) => (
-    <View>
-      <Text style={styles.monthHeader}>{item.month}</Text>
-      <FlatList
-        data={item.data}
-        keyExtractor={(subItem) => subItem.session_id}
-        renderItem={renderItem}
-        scrollEnabled={false}
-      />
-    </View>
-  );
+  const formattedDate = new Date(item.date).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 
   return (
-    <View style={styles.container}>
-      {fares.length === 0 ? (
-        <Text style={styles.empty}>No valid fare records found.</Text>
-      ) : (
-        <>
-          <FlatList
-            data={groupedData}
-            keyExtractor={(item) => item.month}
-            renderItem={renderSection}
-          />
-          <View style={{ paddingBottom: 40 }}>
-            <Button title="Submit Selected Fares" onPress={submitSelected} />
-          </View>
-        </>
-      )}
+    <View style={styles.card}>
+      {/* Header Row */}
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.location}>📍 {item.location_name}</Text>
+          <Text style={styles.date}>🗓️ {formattedDate}</Text>
+        </View>
+
+        <Checkbox
+          value={selected[item.session_id]}
+          onValueChange={() => toggleSelect(item.session_id)}
+          color={selected[item.session_id] ? "#007AFF" : undefined}
+        />
+      </View>
+
+      {/* Fare Details */}
+      <View style={styles.costRow}>
+        <Text style={styles.label}>🚍 Outbound:</Text>
+        <Text style={styles.value}>KWD {out.toFixed(2)}</Text>
+      </View>
+
+      <View style={styles.costRow}>
+        <Text style={styles.label}>🚌 Return:</Text>
+        <Text style={styles.value}>KWD {ret.toFixed(2)}</Text>
+      </View>
+
+      <View style={[styles.costRow, { marginTop: 6 }]}>
+        <Text style={styles.totalLabel}>💰 Total:</Text>
+        <Text style={styles.totalValue}>KWD {total.toFixed(2)}</Text>
+      </View>
+
+      {/* Status */}
+      <Text
+        style={[
+          styles.status,
+          {
+            color: item.ticket_fare_claimed ? "#28a745" : "#d9534f",
+          },
+        ]}
+      >
+        {item.ticket_fare_claimed ? "✅ Claimed" : "❌ Not Claimed"}
+      </Text>
     </View>
   );
+};
+
+const renderSection = ({ item }: { item: GroupedFares }) => (
+  <View>
+    <Text style={styles.monthHeader}>📆 {item.month}</Text>
+    <FlatList
+      data={item.data}
+      keyExtractor={(subItem) => subItem.session_id}
+      renderItem={renderItem}
+      scrollEnabled={false}
+    />
+  </View>
+);
+
+ return (
+  <View style={styles.container}>
+    {fares.length === 0 ? (
+      <Text style={styles.empty}>🚫 No valid fare records found.</Text>
+    ) : (
+      <>
+        <FlatList
+          data={groupedData}
+          keyExtractor={(item) => item.month}
+          renderItem={renderSection}
+        />
+        <View style={styles.buttonContainer}>
+          <Button title="🚀 Submit Selected Fares" onPress={submitSelected} />
+        </View>
+      </>
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 15, backgroundColor: "#f9f9f9" },
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: "#F5F7FB",
+  },
   monthHeader: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
-    color: "#333",
-    marginTop: 10,
-    marginBottom: 6,
-    textAlign: "left",
+    color: "#222",
+    marginTop: 16,
+    marginBottom: 8,
   },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
     elevation: 3,
   },
-  location: { fontSize: 16, fontWeight: "600", marginBottom: 2 },
-  date: { color: "#555", fontSize: 14, marginBottom: 5 },
-  empty: { textAlign: "center", color: "#999", marginTop: 20 },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  location: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#111",
+  },
+  date: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: 2,
+  },
+  costRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 2,
+  },
+  label: {
+    fontSize: 14,
+    color: "#555",
+  },
+  value: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#111",
+  },
+  totalLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
+  },
+  totalValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#007AFF",
+  },
+  status: {
+    marginTop: 8,
+    fontWeight: "600",
+    textAlign: "right",
+  },
+  buttonContainer: {
+    paddingBottom: 40,
+    paddingTop: 10,
+  },
+  empty: {
+    textAlign: "center",
+    color: "#888",
+    fontSize: 16,
+    marginTop: 40,
+  },
 });

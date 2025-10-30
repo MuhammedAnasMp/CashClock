@@ -378,11 +378,6 @@ export default function Records() {
 
             }
 
-            {/* <Text>
-
-                {JSON.stringify(sessions, null, 2)}
-            </Text> */}
-
             <Modal visible={modalVisible} animationType="slide" transparent={true}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
