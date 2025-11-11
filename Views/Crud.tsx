@@ -16,6 +16,7 @@ type RootStackParamList = {
   Dashboard: undefined;
   Crud: undefined;
 };
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User, Location } from '../types';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,10 +35,11 @@ const Crud: React.FC = () => {
 
   const [editingLocationId, setEditingLocationId] = useState<number | null>(null);
   const [editingLocationName, setEditingLocationName] = useState('');
-
+  const [empId, setEmpId] = useState<any>();
   useFocusEffect(
     React.useCallback(() => {
       initDatabase().catch(console.error);
+
       loadData();
     }, [])
   );
@@ -47,6 +49,17 @@ const Crud: React.FC = () => {
   const loadData = async () => {
     setUsers(await getUsers());
     setLocations(await getLocations());
+    const empId = await AsyncStorage.getItem("currentUser");
+    const users = await getUsers();
+
+    const reorderedUsers = users.sort((a, b) => {
+      if (a.emp_id === empId) return -1; // a should come first
+      if (b.emp_id === empId) return 1;  // b should come first
+      return 0;                          // keep original order otherwise
+    });
+
+    setUsers(reorderedUsers);
+    setEmpId(empId)
   };
 
 
@@ -200,7 +213,10 @@ const Crud: React.FC = () => {
 
       {/* Users Section */}
       <View >
-
+         <View style={styles.sectionHeader}>
+        
+          <Text style={styles.sectionTitle}>🙎🏻‍♂️  Connection</Text>
+        </View>
         <FlatList
           data={users}
           scrollEnabled={false}
@@ -239,23 +255,12 @@ const Crud: React.FC = () => {
                       <Ionicons name="person" size={20} color="#6366f1" />
                     </View>
                     <View>
-                      <Text style={styles.userName}>{item.username}</Text>
+                      <Text style={styles.userName}>{item.username} {item.emp_id === empId && "( YOU )"}</Text>
                       <Text style={styles.empId}>EMP: {item.emp_id}</Text>
                     </View>
                   </View>
                   <View style={styles.itemActions}>
-                    {/* <TouchableOpacity
-                      style={styles.iconButton}
-                      onPress={() => handleUpdateUser(item)}
-                    >
-                      <Ionicons name="create-outline" size={18} color="#6366f1" />
-                    </TouchableOpacity> */}
-                    {/* <TouchableOpacity 
-                    style={[styles.iconButton, styles.deleteButton]} 
-                    onPress={() => handleDeleteUser(item.user_id)}
-                  >
-                    <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                  </TouchableOpacity> */}
+
                   </View>
                 </View>
               )}

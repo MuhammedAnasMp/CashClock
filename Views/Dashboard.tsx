@@ -94,7 +94,7 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
 
     useFocusEffect(
         useCallback(() => {
-     
+
             const fetchLocations = async () => {
                 const db = await getDB();
                 const rows = (await db.getAllAsync(
@@ -236,7 +236,7 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         sessionId,
-                        form.emp_id,
+                        activeUserId,
                         form.location_id,
                         form.date.toISOString().split('T')[0],
                         formatTime(form.tap_in),
@@ -248,14 +248,28 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
                     ]
                 );
                 Alert.alert('Success', 'Work session saved!');
+                console.log([
+                    sessionId,
+                    activeUserId,
+                    form.location_id,
+                    form.date.toISOString().split('T')[0],
+                    formatTime(form.tap_in),
+                    form.tap_out ? formatTime(form.tap_out) : null,
+                    hoursWorked,
+                    form.outbound_cost,
+                    form.return_cost,
+                    ticketFare,
+                ])
             }
+
+
 
             // Reset and refresh
             setModalVisible(false);
             setIsEditing(false);
             setEditingSessionId(null);
             setForm({
-                emp_id: form.emp_id,
+                emp_id: activeUserId,
                 location_id: 0,
                 date: new Date(),
                 tap_in: new Date(),
@@ -314,58 +328,57 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
     const [thisMonthStores, setThisMonthStores] = useState<number>(0);
     const [prevMonthHours, setPrevMonthHours] = useState<number>(0);
     const [earningsKWD, setEarningsKWD] = useState<number>(0);
+    const [prevEarningsKWD, setPrevEarningsKWD] = useState<number>(0);
     const [earningsINR, setEarningsINR] = useState<number>(0);
     const [claimableTravelCost, setClaimableTravelCost] = useState<number>(0);
     const [conversionRate, setConversionRate] = useState<number>(DEFAULT_KWD_TO_INR);
 
     // Get month range from 25th to 24th
     const getCurrentPayPeriod = () => {
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
-        const currentDate = now.getDate();
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
 
-        let start, end;
+  let start, end;
+  if (d >= 25) {
+    start = new Date(y, m, 25);
+    end = new Date(y, m + 1, 25); // note: end exclusive
+  } else {
+    start = new Date(y, m - 1, 25);
+    end = new Date(y, m, 25); // end exclusive
+  }
 
-        if (currentDate >= 25) {
-            // Current month 25th to next month 24th
-            start = new Date(currentYear, currentMonth, 25);
-            end = new Date(currentYear, currentMonth + 1, 24);
-        } else {
-            // Previous month 25th to current month 24th
-            start = new Date(currentYear, currentMonth - 1, 25);
-            end = new Date(currentYear, currentMonth, 24);
-        }
+  return {
+    start: start.toLocaleDateString('en-CA'),
+    end: end.toLocaleDateString('en-CA'),
+  };
+};
 
-        return {
-            start: start.toISOString().split("T")[0],
-            end: end.toISOString().split("T")[0],
-        };
-    };
+  const getPreviousPayPeriod = () => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
 
-    const getPreviousPayPeriod = () => {
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        const currentMonth = now.getMonth();
-        const currentDate = now.getDate();
+  let start, end;
 
-        let start, end;
+  if (d >= 25) {
+    // Previous period: last month 25th → current month 25th (exclusive)
+    start = new Date(y, m - 1, 25);
+    end = new Date(y, m, 25);
+  } else {
+    // Previous period: two months ago 25th → last month 25th (exclusive)
+    start = new Date(y, m - 2, 25);
+    end = new Date(y, m - 1, 25);
+  }
 
-        if (currentDate >= 25) {
-            // Previous period: last month 25th to current month 24th
-            start = new Date(currentYear, currentMonth - 1, 25);
-            end = new Date(currentYear, currentMonth, 24);
-        } else {
-            // Previous period: month before last 25th to last month 24th
-            start = new Date(currentYear, currentMonth - 2, 25);
-            end = new Date(currentYear, currentMonth - 1, 24);
-        }
+  return {
+    start: start.toLocaleDateString("en-CA"), // yyyy-mm-dd in local time
+    end: end.toLocaleDateString("en-CA"),
+  };
+};
 
-        return {
-            start: start.toISOString().split("T")[0],
-            end: end.toISOString().split("T")[0],
-        };
-    };
 
     const loadConversionRate = async () => {
         try {
@@ -383,59 +396,68 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
     };
 
     const calculateEarnings = (rows: WorkSession[]) => {
-        let total = 0;
-        rows.forEach((r) => {
-            const rate = r.location_name?.toLowerCase().includes("fahaheel") ? 0.75 : 0.65;
-            total += (r.hours_worked || 0) * rate;
-        });
-        return total;
-    };
+    let total = 0;
+    rows.forEach((r) => {
+        console.log(r.location_id)
+        const rate = r.location_id === 2 ? 0.75 : 0.65;
+        total += (r.hours_worked || 0) * rate;
+    });
+    return total;
+};
+
 
     const fetchData = async () => {
         const db = await getDB();
         const { start, end } = getCurrentPayPeriod();
         const { start: prevStart, end: prevEnd } = getPreviousPayPeriod();
+        const currentUser = await AsyncStorage.getItem('currentUser');
 
-        // Current pay period data
+        // 🔹 Current pay period data
         const currentPeriod = (await db.getAllAsync(
             `SELECT w.*, l.location_name 
          FROM WorkSessions w 
          JOIN Locations l ON w.location_id = l.location_id 
          WHERE date BETWEEN ? AND ? AND emp_id = ?`,
-            [start, end, await AsyncStorage.getItem('currentUser')]
+            [start, end, currentUser]
         )) as WorkSession[];
 
-        // Previous pay period data
+        // 🔹 Previous pay period data
         const prevPeriod = (await db.getAllAsync(
-            `SELECT hours_worked 
-         FROM WorkSessions 
+            `SELECT w.*, l.location_name 
+         FROM WorkSessions w 
+         JOIN Locations l ON w.location_id = l.location_id 
          WHERE date BETWEEN ? AND ? AND emp_id = ?`,
-            [prevStart, prevEnd, await AsyncStorage.getItem('currentUser')]
+            [prevStart, prevEnd, currentUser]
         )) as WorkSession[];
 
         // 🔹 All unclaimed travel cost (ignore period)
         const unclaimedTravelRows = (await db.getAllAsync(
             `SELECT outbound_cost, return_cost 
          FROM WorkSessions 
-         WHERE ticket_fare_claimed = 0  AND emp_id = ?`, [await AsyncStorage.getItem('currentUser')]
+         WHERE ticket_fare_claimed = 0 AND emp_id = ?`,
+            [currentUser]
         )) as WorkSession[];
 
         const totalHours = currentPeriod.reduce((a, b) => a + (b.hours_worked || 0), 0);
         const totalStores = new Set(currentPeriod.map((r) => r.location_id)).size;
         const prevHours = prevPeriod.reduce((a, b) => a + (b.hours_worked || 0), 0);
 
-        // 🔹 Use only unclaimed rows to calculate travel cost
+        // 🔹 Calculate travel cost (unclaimed only)
         const travelCost = calculateTravelCost(unclaimedTravelRows);
 
-        const kwd = calculateEarnings(currentPeriod);
+        // 🔹 Calculate earnings
+        const kwd = calculateEarnings(currentPeriod);        // current period earnings
+        const prevKwd = calculateEarnings(prevPeriod);       // 🔹 last (previous) month earnings in KWD
         const inr = kwd * conversionRate;
 
+        // 🔹 Set state
         setThisMonthHours(totalHours);
         setThisMonthStores(totalStores);
         setPrevMonthHours(prevHours);
         setEarningsKWD(kwd);
         setEarningsINR(inr);
         setClaimableTravelCost(travelCost);
+        setPrevEarningsKWD(prevKwd); // 🔹 Add this line to store previous month earnings
     };
 
     const calculateTravelCost = (rows: WorkSession[]) => {
@@ -765,7 +787,7 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
                         </View>
                         <Text style={styles.statValue}>{thisMonthStores}</Text>
                         <Text style={styles.statLabel}>Stores</Text>
-                        <Text style={styles.statSubtitle}>Total Worked</Text>
+                        <Text style={styles.statSubtitle}>This Period</Text>
                     </View>
 
                     {/* Previous Period */}
@@ -775,24 +797,36 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
                         </View>
                         <Text style={styles.statValue}>{prevMonthHours.toFixed(1)}</Text>
                         <Text style={styles.statLabel}>Hours</Text>
-                        <Text style={styles.statSubtitle}>Last Period</Text>
+                        <Text style={styles.statSubtitle}>Last Month</Text>
                     </View>
                 </View>
 
 
-                {/* Earnings Card */}
                 <View style={styles.earningsCard}>
                     <View style={styles.earningsHeader}>
                         <View style={[styles.iconContainer, { backgroundColor: '#fff3cd' }]}>
                             <Text style={styles.icon}>💰</Text>
                         </View>
                         <View style={styles.earningsText}>
-                            <Text style={styles.earningsLabel}>Period Earnings</Text>
-                            <Text style={styles.earningsKWD}>{earningsKWD.toFixed(3)} KWD</Text>
+                            <Text style={styles.earningsLabel}>This Month Earnings</Text>
+                            <Text style={styles.earningsKWD}>{earningsKWD.toFixed(3)} KWD (<Text style={styles.earningsINR}>₹{earningsINR.toFixed(0)} INR</Text>)</Text>
                         </View>
                     </View>
-                    <Text style={styles.earningsINR}>₹{earningsINR.toFixed(0)} INR</Text>
+
+                    {/* Divider */}
+                    <View style={{ height: 1, backgroundColor: '#eee', marginVertical: 10 }} />
+
+                    {/* Last Month Earnings Row */}
+                    <View style={styles.lastMonthRow}>
+                        <Text style={styles.lastMonthLabel}>Previous Month Earnings</Text>
+                        <Text style={styles.lastMonthValue}>{prevEarningsKWD.toFixed(3)} KWD</Text>
+                    </View>
+
+                    {/* INR at Bottom */}
+                   
                 </View>
+
+
 
                 {/* Claimable Travel Cost Card */}
                 <View style={[styles.card, styles.travelCard]}>
@@ -984,6 +1018,8 @@ const styles = StyleSheet.create({
         color: "#666",
         marginTop: 2,
     },
+
+
     earningsCard: {
         backgroundColor: "#fff",
         borderRadius: 20,
@@ -1015,12 +1051,48 @@ const styles = StyleSheet.create({
         color: "#1a1a1a",
         marginTop: 2,
     },
+    lastMonthRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    lastMonthLabel: {
+        fontSize: 13,
+        color: "#888",
+        fontStyle: 'italic',
+    },
+    lastMonthValue: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: "#444",
+    },
     earningsINR: {
         fontSize: 16,
         fontWeight: "600",
         color: "#10b981",
         textAlign: 'center',
+        marginTop: 10,
     },
+
+
+
+
+    monthEarningsLabel: {
+        fontSize: 14,
+        color: '#888',
+        fontWeight: '500',
+        textAlign: 'center',
+    },
+    monthEarningsValue: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#2563eb', // nice blue tone
+        textAlign: 'center',
+        marginTop: 4,
+    },
+
+
     card: {
         backgroundColor: "#fff",
         borderRadius: 20,

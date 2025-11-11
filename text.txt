@@ -1,0 +1,5 @@
+'android/app/build/outputs/apk/release/app-release.apk'
+
+CD android
+
+gradlew assembleRelease  

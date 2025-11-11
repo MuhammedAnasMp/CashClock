@@ -15,7 +15,8 @@ import MyTimesheet from './Views/MyTimeSheet';
 import MergeFare from './Views/MergeFare';
 import Settings from './Views/Settings';
 import { CustomDrawerContent } from './Views/CustomDrawerContent';
-import { MergeTimesheet } from './Views/MergeTimeSheet';
+import MergeTimesheet from './Views/MergeTimeSheet';
+// import { MergeTimesheet } from './Views/MergeTimeSheet';
 
 type RootStackParamList = {
   Login: undefined;
@@ -44,13 +45,14 @@ function AuthenticatedDrawer() {
   return (
     <Drawer.Navigator
       initialRouteName="Dashboard"
-      drawerContent={(props) => <CustomDrawerContent {...props} />}> 
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
+    >
       <Drawer.Screen name="Dashboard" component={Dashboard} />
       <Drawer.Screen name="All Records" component={AllRecords} />
       <Drawer.Screen name="My Fare" component={MyFare} />
       <Drawer.Screen name="My Timesheet" component={MyTimesheet} />
       <Drawer.Screen name="Merge Fare" component={MergeFare} />
-      <Drawer.Screen name="Merge Timesheet" component={MergeTimesheet} />
+      {/* <Drawer.Screen name="Merge Timesheet" component={MergeTimesheet} /> */}
       <Drawer.Screen name="Settings" component={Settings} />
     </Drawer.Navigator>
   );

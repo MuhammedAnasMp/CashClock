@@ -212,7 +212,7 @@ export default function Records() {
             const db = await getDB();
             const hoursWorked = calculateHoursWorked();
             const ticketFare = form.outbound_cost + form.return_cost;
-         
+
             await db.runAsync(
                 `UPDATE WorkSessions 
                     SET location_id=?, date=?, tap_in=?, tap_out=?, hours_worked=?, outbound_cost=?, return_cost=?, ticket_fare=?
@@ -295,14 +295,16 @@ export default function Records() {
                                 </View>
                             )}
 
+
+
                             {
 
                                 sessionsForSelectedDate.map((session, index) => (
-                                    <TouchableOpacity key={index}
-                                        style={styles.sessionCard}
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={[styles.sessionCard, { padding: 14, marginVertical: 8 }]}
                                         activeOpacity={0.8}
                                         onPress={() => {
-                                            // Fill form with existing session details
                                             setForm({
                                                 emp_id: session.emp_id,
                                                 location_id: session.location_id,
@@ -315,54 +317,71 @@ export default function Records() {
                                                 return_cost: session.return_cost,
                                             });
                                             setEditingSessionId(session.session_id);
-
                                             setModalVisible(true);
                                         }}
                                     >
                                         <View style={styles.cardRow}>
                                             <Text>📍</Text>
                                             <Text style={styles.cardText}>
-                                                Location: {locations.find(l => l.location_id === session.location_id)?.location_name || 'N/A'}
+                                                Location: <Text style={{ fontWeight: 'bold' }}>
+                                                    {locations.find(l => l.location_id === session.location_id)?.location_name || 'N/A'}
+                                                </Text>
                                             </Text>
                                         </View>
+
                                         <View style={styles.cardRow}>
                                             <Text>🗓️</Text>
-                                            <Text style={styles.cardText}>Date: {session.date}</Text>
+                                            <Text style={styles.cardText}>
+                                                Date: <Text style={{ fontWeight: 'bold' }}>{session.date}</Text>
+                                            </Text>
                                         </View>
+
                                         <View style={styles.cardRow}>
                                             <Text>⏱️</Text>
-                                            <Text style={styles.cardText}>Tap In: {session.tap_in}</Text>
+                                            <Text style={styles.cardText}>
+                                                Tap In: <Text style={{ fontWeight: 'bold' }}>{session.tap_in}</Text>
+                                            </Text>
                                         </View>
+
                                         {session.tap_out && (
                                             <View style={styles.cardRow}>
-                                               <Text>⏰</Text> 
-                                                <Text style={styles.cardText}>Tap Out: {session.tap_out}</Text>
+                                                <Text>⏰</Text>
+                                                <Text style={styles.cardText}>
+                                                    Tap Out: <Text style={{ fontWeight: 'bold' }}>{session.tap_out}</Text>
+                                                </Text>
                                             </View>
                                         )}
+
                                         <View style={styles.cardRow}>
-                                            <Text>
-                                                🎫
-                                            </Text>
+                                            <Text>🎫</Text>
                                             <Text style={styles.cardText}>
-                                                Outbound: {session.outbound_cost?.toFixed(3)} | Return: {session.return_cost?.toFixed(3)}
+                                                Outbound: <Text style={{ fontWeight: 'bold' }}>{session.outbound_cost?.toFixed(3)}</Text> |
+                                                Return: <Text style={{ fontWeight: 'bold' }}>{session.return_cost?.toFixed(3)}</Text>
                                             </Text>
                                         </View>
+
                                         <View style={styles.cardRow}>
                                             <Text>⏳</Text>
                                             <Text style={styles.cardText}>
-                                                Hours Worked: {session.hours_worked?.toFixed(2)}
+                                                Hours Worked: <Text style={{ fontWeight: 'bold' }}>{session.hours_worked?.toFixed(2)}</Text>
                                             </Text>
                                         </View>
+
                                         <View style={styles.cardRow}>
-                                          
                                             <Text>🎫</Text>
                                             <Text style={styles.cardText}>
-                                                Ticket Fare: {session.ticket_fare?.toFixed(3)}
+                                                Ticket Fare: <Text style={{ fontWeight: 'bold' }}>{session.ticket_fare?.toFixed(3)}</Text>
                                             </Text>
                                         </View>
                                     </TouchableOpacity>
                                 ))
                             }
+                            <Text>
+
+                                {
+                                    JSON.stringify(sessionsForSelectedDate, null, 2)
+                                }
+                            </Text>
                         </>
                     )}
                 </ScrollView>
