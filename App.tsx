@@ -29,9 +29,9 @@ type DrawerParamList = {
   Crud: undefined;
   Settings: undefined;
   "All Records": undefined;
-  "My Fare": undefined;
+  "My Bus Fare": undefined;
   "My Timesheet": undefined;
-  "Merge Fare": undefined;
+  "Merge Bus Fare": undefined;
   "Merge Timesheet": undefined;
 };
 
@@ -47,16 +47,45 @@ function AuthenticatedDrawer() {
       initialRouteName="Dashboard"
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
-      <Drawer.Screen name="Dashboard" component={Dashboard} />
-      <Drawer.Screen name="All Records" component={AllRecords} />
-      <Drawer.Screen name="My Fare" component={MyFare} />
-      <Drawer.Screen name="My Timesheet" component={MyTimesheet} />
-      <Drawer.Screen name="Merge Fare" component={MergeFare} />
-      {/* <Drawer.Screen name="Merge Timesheet" component={MergeTimesheet} /> */}
-      <Drawer.Screen name="Settings" component={Settings} />
+      <Drawer.Screen 
+        name="Dashboard" 
+        component={Dashboard} 
+        options={{ drawerLabel: '🏠 Dashboard' }}
+      />
+      <Drawer.Screen 
+        name="All Records" 
+        component={AllRecords} 
+        options={{ drawerLabel: '📄 All Records' }}
+      />
+      <Drawer.Screen 
+        name="My Bus Fare" 
+        component={MyFare} 
+        options={{ drawerLabel: '🚌 My Bus Fare' }}
+      />
+      <Drawer.Screen 
+        name="My Timesheet" 
+        component={MyTimesheet} 
+        options={{ drawerLabel: '⏰ My Timesheet' }}
+      />
+      <Drawer.Screen 
+        name="Merge Bus Fare" 
+        component={MergeFare} 
+        options={{ drawerLabel: '🔀 Merge Bus Fare' }}
+      />
+      <Drawer.Screen 
+        name="Merge Timesheet" 
+        component={MergeTimesheet} 
+        options={{ drawerLabel: '🔀 Merge Timesheet' }}
+      />
+      <Drawer.Screen 
+        name="Settings" 
+        component={Settings} 
+        options={{ drawerLabel: '⚙️ Settings' }}
+      />
     </Drawer.Navigator>
   );
 }
+
 
 export default function App() {
   const [dbReady, setDbReady] = useState(false);

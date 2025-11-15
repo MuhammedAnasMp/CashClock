@@ -109,8 +109,8 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
 
             fetchActiveSession();
             fetchLocations();
-            loadConversionRate();
             fetchData()
+
         }, [])
     );
 
@@ -331,79 +331,69 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
     const [prevEarningsKWD, setPrevEarningsKWD] = useState<number>(0);
     const [earningsINR, setEarningsINR] = useState<number>(0);
     const [claimableTravelCost, setClaimableTravelCost] = useState<number>(0);
-    const [conversionRate, setConversionRate] = useState<number>(DEFAULT_KWD_TO_INR);
+    const [conversionRate, setConversionRate] = useState<any>(DEFAULT_KWD_TO_INR);
+  
 
     // Get month range from 25th to 24th
     const getCurrentPayPeriod = () => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const d = now.getDate();
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const d = now.getDate();
 
-  let start, end;
-  if (d >= 25) {
-    start = new Date(y, m, 25);
-    end = new Date(y, m + 1, 25); // note: end exclusive
-  } else {
-    start = new Date(y, m - 1, 25);
-    end = new Date(y, m, 25); // end exclusive
-  }
-
-  return {
-    start: start.toLocaleDateString('en-CA'),
-    end: end.toLocaleDateString('en-CA'),
-  };
-};
-
-  const getPreviousPayPeriod = () => {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const d = now.getDate();
-
-  let start, end;
-
-  if (d >= 25) {
-    // Previous period: last month 25th → current month 25th (exclusive)
-    start = new Date(y, m - 1, 25);
-    end = new Date(y, m, 25);
-  } else {
-    // Previous period: two months ago 25th → last month 25th (exclusive)
-    start = new Date(y, m - 2, 25);
-    end = new Date(y, m - 1, 25);
-  }
-
-  return {
-    start: start.toLocaleDateString("en-CA"), // yyyy-mm-dd in local time
-    end: end.toLocaleDateString("en-CA"),
-  };
-};
-
-
-    const loadConversionRate = async () => {
-        try {
-            const user = await AsyncStorage.getItem('currentUser');
-            if (user) {
-                const userData = JSON.parse(user);
-                const savedRate = await AsyncStorage.getItem(`conversionRate_${userData.user_id}`);
-                if (savedRate) {
-                    setConversionRate(parseFloat(savedRate));
-                }
-            }
-        } catch (error) {
-            console.log("Error loading conversion rate:", error);
+        let start, end;
+        if (d >= 25) {
+            start = new Date(y, m, 25);
+            end = new Date(y, m + 1, 25); // note: end exclusive
+        } else {
+            start = new Date(y, m - 1, 25);
+            end = new Date(y, m, 25); // end exclusive
         }
+
+        return {
+            start: start.toLocaleDateString('en-CA'),
+            end: end.toLocaleDateString('en-CA'),
+        };
     };
 
+    const getPreviousPayPeriod = () => {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = now.getMonth();
+        const d = now.getDate();
+
+        let start, end;
+
+        if (d >= 25) {
+            // Previous period: last month 25th → current month 25th (exclusive)
+            start = new Date(y, m - 1, 25);
+            end = new Date(y, m, 25);
+        } else {
+            // Previous period: two months ago 25th → last month 25th (exclusive)
+            start = new Date(y, m - 2, 25);
+            end = new Date(y, m - 1, 25);
+        }
+
+        return {
+            start: start.toLocaleDateString("en-CA"), // yyyy-mm-dd in local time
+            end: end.toLocaleDateString("en-CA"),
+        };
+    };
+
+
+
+
+
+
     const calculateEarnings = (rows: WorkSession[]) => {
-    let total = 0;
-    rows.forEach((r) => {
-        console.log(r.location_id)
-        const rate = r.location_id === 2 ? 0.75 : 0.65;
-        total += (r.hours_worked || 0) * rate;
-    });
-    return total;
-};
+        let total = 0;
+        rows.forEach((r) => {
+            console.log(r.location_id)
+            const rate = r.location_id === 2 ? 0.75 : 0.65;
+            total += (r.hours_worked || 0) * rate;
+        });
+        return total;
+    };
 
 
     const fetchData = async () => {
@@ -447,15 +437,33 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
 
         // 🔹 Calculate earnings
         const kwd = calculateEarnings(currentPeriod);        // current period earnings
-        const prevKwd = calculateEarnings(prevPeriod);       // 🔹 last (previous) month earnings in KWD
+        const prevKwd = calculateEarnings(prevPeriod); 
+              // 🔹 last (previous) month earnings in KWD
         const inr = kwd * conversionRate;
 
-        // 🔹 Set state
+        try {
+            const user = await AsyncStorage.getItem('currentUser');
+            if (user) {
+                const userData = JSON.parse(user);
+                const savedRate = await AsyncStorage.getItem(`conversionRate_${userData.user_id}`);
+                if (savedRate) {
+                    setEarningsINR(kwd * parseFloat(savedRate));
+                    setConversionRate(parseFloat(savedRate));
+                }
+            }
+            else {
+
+                    console.log("user no loaded yet")
+            }
+
+        } catch (error) {
+            console.log("Error loading conversion rate:", error);
+        }
         setThisMonthHours(totalHours);
         setThisMonthStores(totalStores);
         setPrevMonthHours(prevHours);
-        setEarningsKWD(kwd);
-        setEarningsINR(inr);
+        
+        
         setClaimableTravelCost(travelCost);
         setPrevEarningsKWD(prevKwd); // 🔹 Add this line to store previous month earnings
     };
@@ -823,7 +831,7 @@ const Dashboard: React.FC<Props> = ({ navigation }) => {
                     </View>
 
                     {/* INR at Bottom */}
-                   
+
                 </View>
 
 

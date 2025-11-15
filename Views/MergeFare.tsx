@@ -55,7 +55,7 @@ interface UnifiedFare {
   location_name?: string | null;
   ticket_fare_claimed?: number;
   shared_from_emp_id?: any;
-  claimed_by?:any;
+  claimed_by?: any;
 }
 
 export default function MergeFare() {
@@ -70,7 +70,7 @@ export default function MergeFare() {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [empId, setEmpId] = useState<any>();
-  const [update,setUpdate] = useState(false)
+  const [update, setUpdate] = useState(false)
   useFocusEffect(
     React.useCallback(() => {
       const loadData = async () => {
@@ -142,7 +142,7 @@ export default function MergeFare() {
               shared_to_emp: null,
               is_shared: false,
               ticket_fare_claimed: w.ticket_fare_claimed,
-              claimed_by:w.claimed_by
+              claimed_by: w.claimed_by
 
 
             };
@@ -178,7 +178,7 @@ export default function MergeFare() {
       };
 
       loadData();
-    }, [mode ,update])
+    }, [mode, update])
   );
 
 
@@ -299,7 +299,7 @@ export default function MergeFare() {
           style: "destructive",
           onPress: async () => {
             await deleteBusFareDetailById(id);
-                setUpdate((prev)=>!prev)
+            setUpdate((prev) => !prev)
           },
         },
       ]
@@ -682,7 +682,7 @@ export default function MergeFare() {
         <>
           {/* Scrollable card list */}
           <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-       
+
 
             {Object.keys(groupedFares).length === 0 && (
               <Text style={{ marginBottom: 12 }}>No fares found.</Text>
@@ -727,72 +727,83 @@ export default function MergeFare() {
                       <Text>📆 {item.date}</Text>
                       <Text>➡️ Outbound: {item.outbound_cost}</Text>
                       <Text>⬅️ Return: {item.return_cost}</Text>
-                      <Text>🎫 Total: {item.outbound_cost + item.return_cost}</Text>
+                      <View style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}>
+                        <Text>🎫 Total: {item.outbound_cost + item.return_cost}</Text>
 
-                      <Text
-                        style={[
-                          styles.status,
-                          {
-                            color: item.ticket_fare_claimed == 1 ? "#28a745" : "#d9534f",
-                          },
-                        ]}
-                      >
-                        {item.ticket_fare_claimed == 1 ? "✅ Claimed" : "❌ Not Claimed"}
-                      </Text>
-                      {
-                        item.is_shared &&
-
-                        <TouchableOpacity
-                          onPress={ async()  =>
-
-                         {   
-                           await deleteBusFareDetailById(item.id)
-                            handleDelete(
-                              item.id,
-                              item.shared_from_emp ?? null,
-                              item.location_name ?? null
-                            )}
-                          }
-                          style={{
-                            position: "absolute",
-                            bottom: 8,
-                            left: 12,
-                            borderColor: "gray",
-                            borderWidth: 1,
-                            paddingVertical: 4,
-                            paddingHorizontal: 8,
-                            borderRadius: 6,
-                          }}
+                        <Text
+                          style={[
+                            styles.status,
+                            {
+                              color: item.ticket_fare_claimed == 1 ? "#28a745" : "#d9534f",
+                            },
+                          ]}
                         >
-                          <Text>👉🏻🗑️</Text>
-                        </TouchableOpacity>
+                          {item.ticket_fare_claimed == 1 ?  "✅ Excel Generated" : "❌ Not Generated"}
+                        </Text>
+                      </View>
 
-                      }
-                      <Text>{JSON.stringify(item, null, 2)}</Text>
-                    </View>
+                      {item.is_shared && (
+                            <TouchableOpacity
+                              onPress={async () => {
+                                await deleteBusFareDetailById(item.id);
+                                handleDelete(
+                                  item.id,
+                                  item.shared_from_emp ?? null,
+                                  item.location_name ?? null
+                                )
+                              }}
+                              style={{
+                                alignSelf: "flex-start",       // fits the text
+                                backgroundColor: "#ff4d4f",    // red button feel
+                                paddingVertical: 6,
+                                paddingHorizontal: 12,
+                                borderRadius: 6,
+                                shadowColor: "#000",           // subtle shadow (iOS)
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.25,
+                                shadowRadius: 3.84,
+                                elevation: 5,                  // shadow for Android
+                              }}
+                              activeOpacity={0.7}              // touch feedback
+                            >
+                              <Text style={{ color: "#fff", fontWeight: "bold" }}>Delete Shared</Text>  
+                            </TouchableOpacity>
+                          )}
+
+
+                    </View> 
                   );
                 })}
               </View>
             ))}
+            
           </ScrollView>
 
           {/* Fixed bottom buttons */}
+          {
+            selectedSessions.length >0 &&
           <View style={{ paddingVertical: 10, borderTopWidth: 1, borderColor: "#ddd", paddingBottom: 50 }}>
             {!hasSharedSelected && (
               <>
                 <Button
-                  title="Share Fare "
+                  title="Share My Fare "
                   onPress={generateShareQR}
                 />
                 <View style={{ height: 10 }} />
-                <Button title="Receive Fare" onPress={() => setMode("receive")} />
+                <Button title="Receive Any Fare" onPress={() => setMode("receive")} />
                 <View style={{ height: 10 }} />
               </>
             )}
-            <Button title="Export " onPress={exportSelected} />
+            <Button title="Generate Excel " onPress={exportSelected} />
           </View>
+          }
         </>
       )}
+     
 
       {/* Receive and QR modal sections remain unchanged */}
       {mode === "receive" && (

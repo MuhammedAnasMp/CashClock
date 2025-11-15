@@ -385,135 +385,142 @@ export default function MyFare() {
   const groupedData = groupByMonth(fares);
 
 
- const renderItem = ({ item }: { item: FareRecord }) => {
-  const out = Number(item.outbound_cost) || 0;
-  const ret = Number(item.return_cost) || 0;
-  const total = out + ret;
+  const renderItem = ({ item }: { item: FareRecord }) => {
+    const out = Number(item.outbound_cost) || 0;
+    const ret = Number(item.return_cost) || 0;
+    const total = out + ret;
 
-  const formattedDate = new Date(item.date).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+    const formattedDate = new Date(item.date).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
 
-  return (
-    <View style={styles.card}>
-      {/* Header Row */}
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.location}>📍 {item.location_name}</Text>
-          <Text style={styles.date}>🗓️ {formattedDate}</Text>
+    return (
+      <View style={styles.card}>
+        {/* Header Row */}
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.location}>📍 {item.location_name}</Text>
+            <Text style={styles.date}>🗓️ {formattedDate}</Text>
+          </View>
+
+          <Checkbox
+            value={selected[item.session_id]}
+            onValueChange={() => toggleSelect(item.session_id)}
+            color={selected[item.session_id] ? "#007AFF" : undefined}
+          />
         </View>
 
-        <Checkbox
-          value={selected[item.session_id]}
-          onValueChange={() => toggleSelect(item.session_id)}
-          color={selected[item.session_id] ? "#007AFF" : undefined}
-        />
+        {/* Divider */}
+        <View style={styles.divider} />
+
+        {/* Fare Details */}
+        <View style={styles.costRow}>
+          <Text style={styles.label}>🚍 Outbound:</Text>
+          <Text style={styles.value}>KWD {out.toFixed(2)}</Text>
+        </View>
+
+        <View style={styles.costRow}>
+          <Text style={styles.label}>🚌 Return:</Text>
+          <Text style={styles.value}>KWD {ret.toFixed(2)}</Text>
+        </View>
+
+        {/* Total Row */}
+        <View style={[styles.costRow, styles.totalRow]}>
+          <Text style={styles.totalLabel}>💰 Total:</Text>
+          <Text style={styles.totalValue}>KWD {total.toFixed(2)}</Text>
+        </View>
+
+        {/* Status */}
+        <View
+          style={[
+            styles.statusContainer,
+            {
+              backgroundColor: item.ticket_fare_claimed ? "#d4edda" : "#f8d7da",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.status,
+              { color: item.ticket_fare_claimed ? "#28a745" : "#d9534f" },
+            ]}
+          >
+            {item.ticket_fare_claimed ?  "✅ Excel Generated" : "❌ Not Generated"}
+          </Text>
+        </View>
       </View>
 
-      {/* Fare Details */}
-      <View style={styles.costRow}>
-        <Text style={styles.label}>🚍 Outbound:</Text>
-        <Text style={styles.value}>KWD {out.toFixed(2)}</Text>
-      </View>
+    );
+  };
 
-      <View style={styles.costRow}>
-        <Text style={styles.label}>🚌 Return:</Text>
-        <Text style={styles.value}>KWD {ret.toFixed(2)}</Text>
-      </View>
-
-      <View style={[styles.costRow, { marginTop: 6 }]}>
-        <Text style={styles.totalLabel}>💰 Total:</Text>
-        <Text style={styles.totalValue}>KWD {total.toFixed(2)}</Text>
-      </View>
-
-      {/* Status */}
-      <Text
-        style={[
-          styles.status,
-          {
-            color: item.ticket_fare_claimed ? "#28a745" : "#d9534f",
-          },
-        ]}
-      >
-        {item.ticket_fare_claimed ? "✅ Claimed" : "❌ Not Claimed"}
-      </Text>
+  const renderSection = ({ item }: { item: GroupedFares }) => (
+    <View>
+      <Text style={styles.monthHeader}>📆 {item.month}</Text>
+      <FlatList
+        data={item.data}
+        keyExtractor={(subItem) => subItem.session_id}
+        renderItem={renderItem}
+        scrollEnabled={false}
+      />
     </View>
   );
-};
 
-const renderSection = ({ item }: { item: GroupedFares }) => (
-  <View>
-    <Text style={styles.monthHeader}>📆 {item.month}</Text>
-    <FlatList
-      data={item.data}
-      keyExtractor={(subItem) => subItem.session_id}
-      renderItem={renderItem}
-      scrollEnabled={false}
-    />
-  </View>
-);
-
- return (
-  <View style={styles.container}>
-    {fares.length === 0 ? (
-      <Text style={styles.empty}>🚫 No valid fare records found.</Text>
-    ) : (
-      <>
-        <FlatList
-          data={groupedData}
-          keyExtractor={(item) => item.month}
-          renderItem={renderSection}
-        />
-        <View style={styles.buttonContainer}>
-          <Button title="🚀 Submit Selected Fares" onPress={submitSelected} />
-        </View>
-      </>
-    )}
-  </View>
-);
+  return (
+    <View style={styles.container}>
+      {fares.length === 0 ? (
+        <Text style={styles.empty}>🚫 No valid fare records found.</Text>
+      ) : (
+        <>
+          <FlatList
+            data={groupedData}
+            keyExtractor={(item) => item.month}
+            renderItem={renderSection}
+          />
+          {
+            fares.filter(f => selected[f.session_id]).length > 0 &&
+          <View style={styles.buttonContainer}>
+            <Button title="Generate Excel" onPress={submitSelected} />
+          </View>
+          }
+        </>
+      )}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: "#F5F7FB",
-  },
-  monthHeader: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#222",
-    marginTop: 16,
-    marginBottom: 8,
-  },
   card: {
     backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5, // for Android shadow
   },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom:6,
   },
   location: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "600",
-    color: "#111",
   },
   date: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#666",
     marginTop: 2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#eee",
+    marginVertical: 0,
   },
   costRow: {
     flexDirection: "row",
@@ -527,23 +534,45 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#111",
+  },
+  totalRow: {
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    paddingTop: 6,
   },
   totalLabel: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#111",
   },
   totalValue: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#007AFF",
+  },
+  statusContainer: {
+    alignSelf: "flex-end",
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    marginTop: 5,
   },
   status: {
-    marginTop: 8,
+    fontSize: 14,
     fontWeight: "600",
-    textAlign: "right",
   },
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: "#F5F7FB",
+  },
+  monthHeader: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#222",
+    marginTop: 16,
+    marginBottom: 8,
+  },
+
   buttonContainer: {
     paddingBottom: 40,
     paddingTop: 10,
@@ -554,4 +583,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 40,
   },
+
 });
+
+
+

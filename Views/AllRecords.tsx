@@ -279,7 +279,7 @@ export default function Records() {
             {selectedDate ? (
                 <ScrollView style={{ marginTop: 10 }}>
                     {sessionsForSelectedDate.length === 0 ? (
-                        <Text style={{ textAlign: 'center', marginTop: 10 }}>No sessions for this date</Text>
+                        <Text style={{ textAlign: 'center', marginTop: 10 }}>No part-time shifts this date.</Text>
                     ) : (
                         <>
                             {sessionsForSelectedDate.length > 1 && (
@@ -352,6 +352,13 @@ export default function Records() {
                                             </View>
                                         )}
 
+
+                                        <View style={styles.cardRow}>
+                                            <Text>⏳</Text>
+                                            <Text style={styles.cardText}>
+                                                Hours Worked: <Text style={{ fontWeight: 'bold' }}>{session.hours_worked?.toFixed(2)}</Text>
+                                            </Text>
+                                        </View>
                                         <View style={styles.cardRow}>
                                             <Text>🎫</Text>
                                             <Text style={styles.cardText}>
@@ -361,27 +368,15 @@ export default function Records() {
                                         </View>
 
                                         <View style={styles.cardRow}>
-                                            <Text>⏳</Text>
-                                            <Text style={styles.cardText}>
-                                                Hours Worked: <Text style={{ fontWeight: 'bold' }}>{session.hours_worked?.toFixed(2)}</Text>
-                                            </Text>
-                                        </View>
-
-                                        <View style={styles.cardRow}>
                                             <Text>🎫</Text>
                                             <Text style={styles.cardText}>
-                                                Ticket Fare: <Text style={{ fontWeight: 'bold' }}>{session.ticket_fare?.toFixed(3)}</Text>
+                                               Total Fare: <Text style={{ fontWeight: 'bold' }}>{session.ticket_fare?.toFixed(3)}</Text>
                                             </Text>
                                         </View>
                                     </TouchableOpacity>
                                 ))
                             }
-                            <Text>
-
-                                {
-                                    JSON.stringify(sessionsForSelectedDate, null, 2)
-                                }
-                            </Text>
+                          
                         </>
                     )}
                 </ScrollView>

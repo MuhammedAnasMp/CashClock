@@ -169,7 +169,7 @@ const Settings = () => {
 
     <View style={{ flex: 1, backgroundColor: "#f8fafc", padding: 16 }}>
       {sections.length === 0 ? (
-        <Text style={xStyles.xEmptyText}>No sessions found 🙂</Text>
+        <Text style={xStyles.xEmptyText}>No duty days found 🙂</Text>
       ) : (
         <SectionList
           sections={sections}

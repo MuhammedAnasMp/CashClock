@@ -41,21 +41,28 @@ export default function MyTimesheet() {
 
   const { periodStart, periodEnd, periodLabel, titleMonth, titleYear } = useMemo(() => {
     const today = new Date();
-    // Anchor is the most recent 25th at or before today
+
     const anchorMonth = today.getDate() >= 25 ? today.getMonth() : today.getMonth() - 1;
     const anchorYear = today.getFullYear();
-    const anchor = new Date(anchorYear, anchorMonth, 25);
-    // Apply offset in 25-based months
-    const start = new Date(anchor.getFullYear(), anchor.getMonth() + monthOffset, 25);
-    const end = new Date(start.getFullYear(), start.getMonth() + 1, 25); // exclusive
+    const anchor = new Date(Date.UTC(anchorYear, anchorMonth, 25));
+
+    const start = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth() + monthOffset, 25));
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 25)); // exclusive
+
     const startDisp = new Date(start);
-    const endDisp = new Date(end.getTime() - 24 * 60 * 60 * 1000); // 24th of next calendar month
-    const periodText = `25 ${startDisp.toLocaleString("en-US", { month: "short" })} ${startDisp.getFullYear()} - 24 ${endDisp.toLocaleString("en-US", { month: "short" })} ${endDisp.getFullYear()}`;
-    const titleDate = new Date(end.getTime() - 24 * 60 * 60 * 1000); // label month like sample
+    const endDisp = new Date(end.getTime() - 24 * 60 * 60 * 1000);
+
+    const periodText =
+      `25 ${startDisp.toLocaleString("en-US", { month: "short" })} ${startDisp.getUTCFullYear()} - ` +
+      `24 ${endDisp.toLocaleString("en-US", { month: "short" })} ${endDisp.getUTCFullYear()}`;
+
+    const titleDate = endDisp;
     const tMonth = titleDate.toLocaleString("en-US", { month: "long" }).toUpperCase();
-    const tYear = titleDate.getFullYear();
+    const tYear = titleDate.getUTCFullYear();
+
     return { periodStart: start, periodEnd: end, periodLabel: periodText, titleMonth: tMonth, titleYear: tYear };
   }, [monthOffset]);
+
 
   // Load data when header/layout is ready and whenever month changes
   const loadPeriodData = async () => {
@@ -67,6 +74,9 @@ export default function MyTimesheet() {
 
       const startStr = periodStart.toISOString().slice(0, 10);
       const endStr = periodEnd.toISOString().slice(0, 10);
+
+
+      console.log({ startStr, endStr })
 
       const q = `
   SELECT ws.session_id, ws.emp_id, u.username, l.location_name, ws.date, ws.hours_worked, ws.timesheet_submitted
@@ -233,7 +243,7 @@ export default function MyTimesheet() {
               await db.runAsync("UPDATE WorkSessions SET timesheet_submitted = 1 WHERE session_id = ?", [id]);
             }
             await db.execAsync("COMMIT");
-            Alert.alert("Success", "Selected sessions marked as submitted!");
+            Alert.alert("Success", "Selected cards marked as submitted!");
             await loadPeriodData();
             setShowGroupModal(false);
           } catch (e) {
@@ -261,7 +271,7 @@ export default function MyTimesheet() {
     const monthToDays: Record<string, number[]> = {};
     uniqueDates.forEach(d => {
       const dateObj = new Date(d);
-      const mon = dateObj.toLocaleString('en-US', { month: 'short' }).toLowerCase();
+      const mon = dateObj.toLocaleString('en-US', { month: 'short' });
       const day = dateObj.getDate();
       if (!monthToDays[mon]) monthToDays[mon] = [];
       if (!monthToDays[mon].includes(day)) monthToDays[mon].push(day);
@@ -276,9 +286,12 @@ export default function MyTimesheet() {
       <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={() => { setSelectedGroup(g); setShowGroupModal(true); }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
           <View>
-            <Text style={styles.groupName}>{g}</Text>
-            <Text style={styles.groupMeta}>{list.length} sessions</Text>
+            <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{g}</Text>
+            <Text style={{ fontSize: 14, color: '#555' }}>
+              <Text style={{ fontWeight: 'bold', color: '#ff5722' }}>{list.length}</Text> {list.length === 1 ? 'Work day' : 'Work Days'}
+            </Text>
           </View>
+
           {monthLines.length > 0 ? (
             <View style={styles.dateList}>
               {monthLines.map((ln) => (
@@ -289,10 +302,10 @@ export default function MyTimesheet() {
         </View>
         <View style={{ flexDirection: "row", marginTop: 8, flexWrap: "wrap" }}>
           <View style={[styles.chip, submittedCount === 0 ? { backgroundColor: "#FFEBEE" } : { backgroundColor: "#e3f2fd" }]}>
-            <Text style={[styles.chipText, submittedCount === 0 ? { color: "#C62828" } : null]}>Submitted: {submittedCount}</Text>
+            <Text style={[styles.chipText, submittedCount === 0 ? { color: "#C62828" } : null]}>Generated: {submittedCount}</Text>
           </View>
           <View style={[styles.chip, { backgroundColor: "#E8F5E9" }]}>
-            <Text style={[styles.chipText, { color: "#2E7D32" }]}>Total: {totalHours.toFixed(2)} hrs</Text>
+            <Text style={[styles.chipText, { color: "#2E7D32" }]}>Total Worked: {totalHours.toFixed(2)} hrs</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -323,7 +336,7 @@ export default function MyTimesheet() {
         data={Object.entries(groups)}
         keyExtractor={([g]) => g}
         renderItem={renderGroupCard}
-        ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 20 }}>{loading ? "Loading..." : "No sessions for this month"}</Text>}
+        ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 20 }}>{loading ? "Loading..." : "No part-time shifts this month."}</Text>}
         contentContainerStyle={{ paddingBottom: 16 }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadPeriodData} />}
       />
@@ -340,7 +353,7 @@ export default function MyTimesheet() {
                   <Text style={styles.sessionDate}>{new Date(s.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</Text>
                   <Text style={styles.sessionHours}>{(Number(s.hours_worked) || 0).toFixed(2)} hrs</Text>
                   <View style={[styles.statusPill, { backgroundColor: s.timesheet_submitted ? "#C8E6C9" : "#FFE0B2" }]}>
-                    <Text style={{ color: s.timesheet_submitted ? "#2E7D32" : "#E65100", fontWeight: "600" }}>{s.timesheet_submitted ? "Submitted" : "Not Submitted"}</Text>
+                    <Text style={{ color: s.timesheet_submitted ? "#2E7D32" : "#E65100", fontWeight: "600" }}>{s.timesheet_submitted ? "Gerated" : "Not Generated"}</Text>
                   </View>
                 </View>
               ))}
@@ -351,7 +364,7 @@ export default function MyTimesheet() {
               </TouchableOpacity>
               {selectedGroup && (
                 <TouchableOpacity style={styles.exportBtn} onPress={() => exportGroup(selectedGroup, groups[selectedGroup])}>
-                  <Text style={styles.exportText}>📤 Export</Text>
+                  <Text style={styles.exportText}>📤 Generate Excel</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -359,7 +372,6 @@ export default function MyTimesheet() {
         </View>
       </Modal>
 
-      {/** Date modal removed per request */}
     </View>
   );
 }
